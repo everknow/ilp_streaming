@@ -1,18 +1,6 @@
 defmodule IlpStreaming do
-  @moduledoc """
-  Documentation for `IlpStreaming`.
-  """
+  use Rustler, otp_app: :ilp_streaming, crate: "ilpstreaming"
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> IlpStreaming.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
+  # When your NIF is loaded, it will override this function.
+  def encode(_a), do: :erlang.nif_error(:nif_not_loaded)
 end

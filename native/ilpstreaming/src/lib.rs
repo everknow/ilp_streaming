@@ -7,7 +7,7 @@ use rustler::{Binary, Encoder, Env, Error, NifResult, Term};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::str::FromStr;
+use std::str::{from_utf8, FromStr};
 
 rustler::init!("Elixir.IlpStreaming", [encode, decode]);
 
@@ -71,21 +71,21 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
     for hm in fms {
         let t = hm.get("type").ok_or(error!("type is missing"))?;
         match t.decode::<&str>().or(err!("type not binary"))? {
-            "connection_close_frame" => {
+            "connection_close" => {
                 // get fields
                 let c = hm
                     .get("code")
-                    .ok_or(error!("connection_close_frame > code is missing"))?;
+                    .ok_or(error!("connection_close > code is missing"))?;
                 let ms = hm
                     .get("message")
-                    .ok_or(error!("connection_close_frame > message is missing "))?;
+                    .ok_or(error!("connection_close > message is missing "))?;
                 // transform
                 let codes = c
                     .decode::<u8>()
-                    .or(err!("connection_close_frame > could not decode code"))?;
+                    .or(err!("connection_close > could not decode code"))?;
                 let message = ms
                     .decode::<&str>()
-                    .or(err!("connection_close_frame > could not decode message"))?;
+                    .or(err!("connection_close > could not decode message"))?;
                 //special transform
                 let code = ErrorCode::from(codes);
                 let result = Frame::ConnectionClose(ConnectionCloseFrame { code, message });
@@ -93,18 +93,18 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionClose(result));
                 }
             }
-            "connection_new_address_frame" => {
+            "connection_new_address" => {
                 // get fields
-                let sa = hm.get("source_account").ok_or(error!(
-                    "connection_new_address_frame > source_account is missing"
-                ))?;
+                let sa = hm
+                    .get("source_account")
+                    .ok_or(error!("connection_new_address > source_account is missing"))?;
                 // transform
                 let source_accounts = sa.decode::<&str>().or(err!(
-                    "connection_new_address_frame > could not decode source_account"
+                    "connection_new_address > could not decode source_account"
                 ))?;
                 //special transform
                 let source_account = Address::from_str(source_accounts).or(err!(
-                    "connection_new_address_frame > could not decode the source_account"
+                    "connection_new_address > could not decode the source_account"
                 ))?;
                 let result =
                     Frame::ConnectionNewAddress(ConnectionNewAddressFrame { source_account });
@@ -112,21 +112,21 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionNewAddress(result));
                 }
             }
-            "connection_asset_details_frame" => {
+            "connection_asset_details" => {
                 // get fields
                 let sac = hm.get("source_asset_code").ok_or(error!(
-                    "connection_asset_details_frame > source_asset_code is missing"
+                    "connection_asset_details > source_asset_code is missing"
                 ))?;
                 let sas = hm.get("source_asset_scale").ok_or(error!(
-                    "connection_asset_details_frame > source_asset_scale is missing"
+                    "connection_asset_details > source_asset_scale is missing"
                 ))?;
                 // transform
                 let source_asset_code = sac.decode::<&str>().or(err!(
-                    "connection_asset_details_frame > could not decode source_asset_code"
+                    "connection_asset_details > could not decode source_asset_code"
                 ))?;
-                let source_asset_scale = sas.decode::<u8>().or(err!(
-                    "connection_asset_details_frame > could not decode scale"
-                ))?;
+                let source_asset_scale = sas
+                    .decode::<u8>()
+                    .or(err!("connection_asset_details > could not decode scale"))?;
                 let result = Frame::ConnectionAssetDetails(ConnectionAssetDetailsFrame {
                     source_asset_code,
                     source_asset_scale,
@@ -135,28 +135,28 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionAssetDetails(result));
                 }
             }
-            "connection_max_data_frame" => {
+            "connection_max_data" => {
                 // get fields
                 let mo = hm
                     .get("max_offset")
-                    .ok_or(error!("connection_max_data_frame > max_offset is missing"))?;
+                    .ok_or(error!("connection_max_data > max_offset is missing"))?;
                 // transform
-                let max_offset = mo.decode::<u64>().or(err!(
-                    "connection_max_data_frame > could not decode max_offset"
-                ))?;
+                let max_offset = mo
+                    .decode::<u64>()
+                    .or(err!("connection_max_data > could not decode max_offset"))?;
                 let result = Frame::ConnectionMaxData(ConnectionMaxDataFrame { max_offset });
                 if let Frame::ConnectionMaxData(result) = result {
                     frames.push(Frame::ConnectionMaxData(result));
                 }
             }
-            "connection_data_blocked_frame" => {
+            "connection_data_blocked" => {
                 // get fields
-                let mob = hm.get("max_offset").ok_or(error!(
-                    "connection_data_blocked_frame > max_offset is missing"
-                ))?;
+                let mob = hm
+                    .get("max_offset")
+                    .ok_or(error!("connection_data_blocked > max_offset is missing"))?;
                 // transform
                 let max_offset = mob.decode::<u64>().or(err!(
-                    "connection_data_blocked_frame > could not decode max_offset"
+                    "connection_data_blocked > could not decode max_offset"
                 ))?;
                 let result =
                     Frame::ConnectionDataBlocked(ConnectionDataBlockedFrame { max_offset });
@@ -164,14 +164,14 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionDataBlocked(result));
                 }
             }
-            "connection_max_stream_id_frame" => {
+            "connection_max_stream_id" => {
                 // get fields
                 let msi = hm.get("max_stream_id").ok_or(error!(
-                    "connection_max_stream_id_frame > max_stream_id is missing"
+                    "connection_max_stream_id > max_stream_id is missing"
                 ))?;
                 // transform
                 let max_stream_id = msi.decode::<u64>().or(err!(
-                    "connection_max_stream_id_frame > could not decode max_stream_id"
+                    "connection_max_stream_id > could not decode max_stream_id"
                 ))?;
                 let result =
                     Frame::ConnectionMaxStreamId(ConnectionMaxStreamIdFrame { max_stream_id });
@@ -179,14 +179,14 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionMaxStreamId(result));
                 }
             }
-            "connection_stream_id_blocked_frame" => {
+            "connection_stream_id_blocked" => {
                 // get fields
                 let msis = hm.get("max_stream_id").ok_or(error!(
-                    "connection_stream_id_blocked_frame > max_stream_id is missing"
+                    "connection_stream_id_blocked > max_stream_id is missing"
                 ))?;
                 // transform
                 let max_stream_id = msis.decode::<u64>().or(err!(
-                    "connection_stream_id_blocked_frame > could not decode max_stream_id"
+                    "connection_stream_id_blocked > could not decode max_stream_id"
                 ))?;
                 let result = Frame::ConnectionStreamIdBlocked(ConnectionStreamIdBlockedFrame {
                     max_stream_id,
@@ -195,27 +195,27 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::ConnectionStreamIdBlocked(result));
                 }
             }
-            "stream_close_frame" => {
+            "stream_close" => {
                 // get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_close_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_close > stream_id is missing"))?;
                 let c = hm
                     .get("code")
-                    .ok_or(error!("stream_close_frame > code is missing"))?;
+                    .ok_or(error!("stream_close > code is missing"))?;
                 let m = hm
                     .get("message")
-                    .ok_or(error!("stream_close_frame > message is missing"))?;
+                    .ok_or(error!("stream_close > message is missing"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
-                    .or(err!("stream_close_frame > could not decode stream_id"))?;
+                    .or(err!("stream_close > could not decode stream_id"))?;
                 let codes = c
                     .decode::<u8>()
-                    .or(err!("stream_close_frame > could not decode code"))?;
+                    .or(err!("stream_close > could not decode code"))?;
                 let message = m
                     .decode::<&str>()
-                    .or(err!("stream_close_frame > could not decode message"))?;
+                    .or(err!("stream_close > could not decode message"))?;
                 //special transform
                 let code = ErrorCode::from(codes);
                 let result = Frame::StreamClose(StreamCloseFrame {
@@ -227,45 +227,45 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::StreamClose(result));
                 }
             }
-            "stream_money_frame" => {
+            "stream_money" => {
                 // get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_money_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_money > stream_id is missing"))?;
                 let s = hm
                     .get("shares")
-                    .ok_or(error!("stream_money_frame > shares is missing"))?;
+                    .ok_or(error!("stream_money > shares is missing"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
-                    .or(err!("stream_money_frame > could not decode stream_id"))?;
+                    .or(err!("stream_money > could not decode stream_id"))?;
                 let shares = s
                     .decode::<u64>()
-                    .or(err!("stream_money_frame > could not decode shares"))?;
+                    .or(err!("stream_money > could not decode shares"))?;
                 let result = Frame::StreamMoney(StreamMoneyFrame { stream_id, shares });
                 if let Frame::StreamMoney(result) = result {
                     frames.push(Frame::StreamMoney(result));
                 }
             }
-            "stream_max_money_frame" => {
+            "stream_max_money" => {
                 // get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_max_money_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_max_money > stream_id is missing"))?;
                 let rm = hm
                     .get("receive_max")
-                    .ok_or(error!("stream_max_money_frame > receive_max is missing"))?;
+                    .ok_or(error!("stream_max_money > receive_max is missing"))?;
                 let tr = hm
                     .get("total_received")
-                    .ok_or(error!("stream_max_money_frame > total_received is missing"))?;
+                    .ok_or(error!("stream_max_money > total_received is missing"))?;
                 // transform
                 let stream_id = si.decode::<u64>().or(err!("could not decode stream_id"))?;
-                let receive_max = rm.decode::<u64>().or(err!(
-                    "stream_max_money_frame > could not decode receive_max"
-                ))?;
-                let total_received = tr.decode::<u64>().or(err!(
-                    "stream_max_money_frame > could not decode total_received"
-                ))?;
+                let receive_max = rm
+                    .decode::<u64>()
+                    .or(err!("stream_max_money > could not decode receive_max"))?;
+                let total_received = tr
+                    .decode::<u64>()
+                    .or(err!("stream_max_money > could not decode total_received"))?;
                 let result = Frame::StreamMaxMoney(StreamMaxMoneyFrame {
                     stream_id,
                     receive_max,
@@ -275,27 +275,27 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::StreamMaxMoney(result));
                 }
             }
-            "stream_money_blocked_frame" => {
+            "stream_money_blocked" => {
                 //get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_money_blocked_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_money_blocked > stream_id is missing"))?;
                 let sm = hm
                     .get("send_max")
-                    .ok_or(error!("stream_money_blocked_frame > send_max is missing"))?;
-                let ts = hm.get("total_sent").ok_or(error!(
-                    "stream_money_blocked_frame > total_received is total_sen"
-                ))?;
+                    .ok_or(error!("stream_money_blocked > send_max is missing"))?;
+                let ts = hm
+                    .get("total_sent")
+                    .ok_or(error!("stream_money_blocked > total_received is total_sen"))?;
                 // transform
-                let stream_id = si.decode::<u64>().or(err!(
-                    "stream_money_blocked_frame > could not decode stream_id"
-                ))?;
-                let send_max = sm.decode::<u64>().or(err!(
-                    "stream_money_blocked_frame > could not decode send_max"
-                ))?;
-                let total_sent = ts.decode::<u64>().or(err!(
-                    "stream_money_blocked_frame > could not decode total_sent"
-                ))?;
+                let stream_id = si
+                    .decode::<u64>()
+                    .or(err!("stream_money_blocked > could not decode stream_id"))?;
+                let send_max = sm
+                    .decode::<u64>()
+                    .or(err!("stream_money_blocked > could not decode send_max"))?;
+                let total_sent = ts
+                    .decode::<u64>()
+                    .or(err!("stream_money_blocked > could not decode total_sent"))?;
                 let result = Frame::StreamMoneyBlocked(StreamMoneyBlockedFrame {
                     stream_id,
                     send_max,
@@ -305,24 +305,24 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::StreamMoneyBlocked(result));
                 }
             }
-            "stream_data_frame" => {
+            "stream_data" => {
                 // get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_data_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_data > stream_id is missing"))?;
                 let o = hm
                     .get("offset")
-                    .ok_or(error!("stream_data_frame > offset is missing"))?;
+                    .ok_or(error!("stream_data > offset is missing"))?;
                 let d = hm
                     .get("data")
-                    .ok_or(error!("stream_data_frame > data is total_sen"))?;
+                    .ok_or(error!("stream_data > data is total_sen"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
-                    .or(err!("stream_data_frame > could not decode stream_id"))?;
+                    .or(err!("stream_data > could not decode stream_id"))?;
                 let offset = o
                     .decode::<u64>()
-                    .or(err!("stream_data_frame > could not decode offset"))?;
+                    .or(err!("stream_data > could not decode offset"))?;
                 let data = d
                     .into_binary()
                     .or(err!("could not decode data"))?
@@ -337,21 +337,21 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::StreamData(result));
                 }
             }
-            "stream_max_data_frame" => {
+            "stream_max_data" => {
                 // get fields
                 let si = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_max_data_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_max_data > stream_id is missing"))?;
                 let mo = hm
                     .get("max_offset")
-                    .ok_or(error!("stream_max_data_frame > max_offset is missing"))?;
+                    .ok_or(error!("stream_max_data > max_offset is missing"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
-                    .or(err!("stream_max_data_frame > could not decode stream_id"))?;
+                    .or(err!("stream_max_data > could not decode stream_id"))?;
                 let max_offset = mo
                     .decode::<u64>()
-                    .or(err!("stream_max_data_frame > could not decode max_offset"))?;
+                    .or(err!("stream_max_data > could not decode max_offset"))?;
                 let result = Frame::StreamMaxData(StreamMaxDataFrame {
                     stream_id,
                     max_offset,
@@ -360,21 +360,21 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     frames.push(Frame::StreamMaxData(result));
                 }
             }
-            "stream_data_blocked_frame" => {
+            "stream_data_blocked" => {
                 // get fields
                 let sis = hm
                     .get("stream_id")
-                    .ok_or(error!("stream_data_blocked_frame > stream_id is missing"))?;
+                    .ok_or(error!("stream_data_blocked > stream_id is missing"))?;
                 let mos = hm
                     .get("max_offset")
-                    .ok_or(error!("stream_data_blocked_frame > max_offset is missing"))?;
+                    .ok_or(error!("stream_data_blocked > max_offset is missing"))?;
                 // transform
-                let stream_id = sis.decode::<u64>().or(err!(
-                    "stream_data_blocked_frame > could not decode stream_id"
-                ))?;
-                let max_offset = mos.decode::<u64>().or(err!(
-                    "stream_data_blocked_frame > could not decode max_offset"
-                ))?;
+                let stream_id = sis
+                    .decode::<u64>()
+                    .or(err!("stream_data_blocked > could not decode stream_id"))?;
+                let max_offset = mos
+                    .decode::<u64>()
+                    .or(err!("stream_data_blocked > could not decode max_offset"))?;
                 let result = Frame::StreamDataBlocked(StreamDataBlockedFrame {
                     stream_id,
                     max_offset,
@@ -441,7 +441,10 @@ fn decode_frame<'a>(env: Env<'a>, frame: Frame) -> HashMap<&'a str, Term<'a>> {
         }
         Frame::ConnectionNewAddress(ref frame) => {
             decoded_frame.insert("type", "connection_new_address".encode(env));
-            decoded_frame.insert("code", frame.source_account.clone().to_string().encode(env));
+            decoded_frame.insert(
+                "source_account",
+                frame.source_account.clone().to_string().encode(env),
+            );
         }
         Frame::ConnectionAssetDetails(ref frame) => {
             decoded_frame.insert("type", "connection_asset_details".encode(env));
@@ -458,7 +461,7 @@ fn decode_frame<'a>(env: Env<'a>, frame: Frame) -> HashMap<&'a str, Term<'a>> {
         }
         Frame::ConnectionMaxStreamId(ref frame) => {
             decoded_frame.insert("type", "connection_max_stream_id".encode(env));
-            decoded_frame.insert("max_offset", frame.max_stream_id.encode(env));
+            decoded_frame.insert("max_stream_id", frame.max_stream_id.encode(env));
         }
         Frame::ConnectionStreamIdBlocked(ref frame) => {
             decoded_frame.insert("type", "connection_stream_id_blocked".encode(env));
@@ -476,32 +479,36 @@ fn decode_frame<'a>(env: Env<'a>, frame: Frame) -> HashMap<&'a str, Term<'a>> {
             decoded_frame.insert("shares", frame.shares.encode(env));
         }
         Frame::StreamMaxMoney(ref frame) => {
-            decoded_frame.insert("type", "stream_max_close".encode(env));
-            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
-            decoded_frame.insert("receive_max", frame.receive_max.encode(env));   
-            decoded_frame.insert("total_received", frame.total_received.encode(env));  
+            decoded_frame.insert("type", "stream_max_money".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("receive_max", frame.receive_max.encode(env));
+            decoded_frame.insert("total_received", frame.total_received.encode(env));
         }
         Frame::StreamMoneyBlocked(ref frame) => {
             decoded_frame.insert("type", "stream_money_blocked".encode(env));
-            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
-            decoded_frame.insert("send_max", frame.send_max.encode(env));   
-            decoded_frame.insert("total_sent", frame.total_sent.encode(env));   
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("send_max", frame.send_max.encode(env));
+            decoded_frame.insert("total_sent", frame.total_sent.encode(env));
         }
         Frame::StreamData(ref frame) => {
+            let data = match from_utf8(frame.data) {
+                Ok(string_data) => string_data,
+                Err(_) => "could not decode data as string",
+            };
             decoded_frame.insert("type", "stream_data".encode(env));
-            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
-            decoded_frame.insert("offset", frame.offset.encode(env));   
-            decoded_frame.insert("data", frame.data.encode(env));   
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("offset", frame.offset.encode(env));
+            decoded_frame.insert("data", data.encode(env));
         }
         Frame::StreamMaxData(ref frame) => {
             decoded_frame.insert("type", "stream_max_data".encode(env));
-            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
-            decoded_frame.insert("max_offset", frame.max_offset.encode(env));   
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));
         }
         Frame::StreamDataBlocked(ref frame) => {
             decoded_frame.insert("type", "stream_data_blocked".encode(env));
-            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
-            decoded_frame.insert("max_offset", frame.max_offset.encode(env));    
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));
         }
         Frame::Unknown(ref _unknown_frame) => {
             decoded_frame.insert("type", "unknown_frame".encode(env));

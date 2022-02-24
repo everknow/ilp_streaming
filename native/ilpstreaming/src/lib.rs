@@ -1,4 +1,5 @@
 //imports
+use bytes::BytesMut;
 use interledger::packet::Address;
 use interledger::packet::PacketType as IlpPacketType;
 use interledger::stream::packet::*;
@@ -7,7 +8,6 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use bytes::BytesMut;
 
 rustler::init!("Elixir.IlpStreaming", [encode, decode]);
 
@@ -418,74 +418,96 @@ fn decode<'a>(env: Env<'a>, stream: Binary, key: Binary) -> NifResult<Term<'a>> 
     let mut resulting_frames = Vec::new();
 
     for frame in stream_packet.frames() {
-        //
-        resulting_frames.push("frame things");
+        let decoded = decode_frame(env, frame);
+        resulting_frames.push(decoded);
     }
+
+    resulting_stream.insert("sequence".to_string(), sequence.encode(env));
+    resulting_stream.insert("prepare_amount".to_string(), prepare_amount.encode(env));
+    resulting_stream.insert("ilp_packet_type".to_string(), ilp_packet_type.encode(env));
+    resulting_stream.insert("frames".to_string(), resulting_frames.encode(env));
 
     Ok(resulting_stream.encode(env))
 }
 
-// #[rustler::nif(schedule = "DirtyCpu")]
-// fn decode<'a>(env: Env<'a>, bin: Binary) -> NifResult<Term<'a>> {
+fn decode_frame<'a>(env: Env<'a>, frame: Frame) -> HashMap<&'a str, Term<'a>> {
+    let mut decoded_frame = HashMap::new();
 
-//     match StreamPacket::from_encrypted(" ".as_bytes(), BytesMut::from(" ")).unwrap(){
+    match frame {
+        Frame::ConnectionClose(ref frame) => {
+            decoded_frame.insert("type", "connection_close".encode(env));
+            decoded_frame.insert("code", u8::from(frame.code).encode(env));
+            decoded_frame.insert("message", frame.message.encode(env));
+        }
+        Frame::ConnectionNewAddress(ref frame) => {
+            decoded_frame.insert("type", "connection_new_address".encode(env));
+            decoded_frame.insert("code", frame.source_account.clone().to_string().encode(env));
+        }
+        Frame::ConnectionAssetDetails(ref frame) => {
+            decoded_frame.insert("type", "connection_asset_details".encode(env));
+            decoded_frame.insert("source_asset_code", frame.source_asset_code.encode(env));
+            decoded_frame.insert("source_asset_scale", frame.source_asset_scale.encode(env));
+        }
+        Frame::ConnectionMaxData(ref frame) => {
+            decoded_frame.insert("type", "connection_max_data".encode(env));
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));
+        }
+        Frame::ConnectionDataBlocked(ref frame) => {
+            decoded_frame.insert("type", "connection_data_blocked".encode(env));
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));
+        }
+        Frame::ConnectionMaxStreamId(ref frame) => {
+            decoded_frame.insert("type", "connection_max_stream_id".encode(env));
+            decoded_frame.insert("max_offset", frame.max_stream_id.encode(env));
+        }
+        Frame::ConnectionStreamIdBlocked(ref frame) => {
+            decoded_frame.insert("type", "connection_stream_id_blocked".encode(env));
+            decoded_frame.insert("max_offset", frame.max_stream_id.encode(env));
+        }
+        Frame::StreamClose(ref frame) => {
+            decoded_frame.insert("type", "stream_close".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("code", u8::from(frame.code).encode(env));
+            decoded_frame.insert("message", frame.message.encode(env));
+        }
+        Frame::StreamMoney(ref frame) => {
+            decoded_frame.insert("type", "stream_money".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));
+            decoded_frame.insert("shares", frame.shares.encode(env));
+        }
+        Frame::StreamMaxMoney(ref frame) => {
+            decoded_frame.insert("type", "stream_max_close".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
+            decoded_frame.insert("receive_max", frame.receive_max.encode(env));   
+            decoded_frame.insert("total_received", frame.total_received.encode(env));  
+        }
+        Frame::StreamMoneyBlocked(ref frame) => {
+            decoded_frame.insert("type", "stream_money_blocked".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
+            decoded_frame.insert("send_max", frame.send_max.encode(env));   
+            decoded_frame.insert("total_sent", frame.total_sent.encode(env));   
+        }
+        Frame::StreamData(ref frame) => {
+            decoded_frame.insert("type", "stream_data".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
+            decoded_frame.insert("offset", frame.offset.encode(env));   
+            decoded_frame.insert("data", frame.data.encode(env));   
+        }
+        Frame::StreamMaxData(ref frame) => {
+            decoded_frame.insert("type", "stream_max_data".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));   
+        }
+        Frame::StreamDataBlocked(ref frame) => {
+            decoded_frame.insert("type", "stream_data_blocked".encode(env));
+            decoded_frame.insert("stream_id", frame.stream_id.encode(env));   
+            decoded_frame.insert("max_offset", frame.max_offset.encode(env));    
+        }
+        Frame::Unknown(ref _unknown_frame) => {
+            decoded_frame.insert("type", "unknown_frame".encode(env));
+            decoded_frame.insert("error", "could not decode as any Frame type".encode(env));
+        }
+    };
 
-//         "connection_close_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_new_address_frame" => {
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_asset_details_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_max_data_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_data_blocked_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_max_stream_id_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "connection_stream_id_blocked_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_close_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_money_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_max_money_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_money_blocked_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_data_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_max_data_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         "stream_data_blocked_frame" => {
-
-//             Ok("No idea to return ".encode(env))
-//         }
-//         _ => {
-//             err!("type not recognised")
-//         }
-//     }
+    decoded_frame
+}

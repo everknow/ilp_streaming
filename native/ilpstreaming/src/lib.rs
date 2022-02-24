@@ -54,6 +54,12 @@ fn encode<'a>(env: Env<'a>, arg: Term) -> NifResult<Term<'a>> {
 
     // transform
     let sequence = s.decode::<u64>().or(err!("could not decode sequence"))?;
+    
+    let packet_type = IlpPacketType::try_from(
+        ipt.decode::<u8>()
+        .or(err!("could not decode packet type as binary"))?)
+        .or(err!("could not decode packet type as IlpPacketType"))?;
+
     let prepare_amount = pa.decode::<u64>().or(err!("could not decode prepare_amount"))?;
     let fms = f.decode::<Vec<HashMap<String, Term>>>().or(err!("could not decode frames"))?;
 
@@ -316,7 +322,7 @@ fn encode<'a>(env: Env<'a>, arg: Term) -> NifResult<Term<'a>> {
 
     StreamPacketBuilder {
         sequence: sequence,
-        ilp_packet_type: IlpPacketType::try_from(ipt.into_binary()?.as_slice()).unwrap(),
+        ilp_packet_type: packet_type,
         prepare_amount: prepare_amount,
         frames: &frames,
     }

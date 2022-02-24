@@ -1,20 +1,15 @@
 //imports
 use interledger::packet::Address;
 use interledger::packet::PacketType as IlpPacketType;
-use interledger::stream::packet::{
-    ConnectionAssetDetailsFrame, ConnectionCloseFrame, ConnectionDataBlockedFrame,
-    ConnectionMaxDataFrame, ConnectionMaxStreamIdFrame, ConnectionNewAddressFrame,
-    ConnectionStreamIdBlockedFrame, ErrorCode, Frame, StreamCloseFrame, StreamDataBlockedFrame,
-    StreamDataFrame, StreamMaxDataFrame, StreamMaxMoneyFrame, StreamMoneyBlockedFrame,
-    StreamMoneyFrame, StreamPacketBuilder,
-};
-use rustler::{Encoder, Env, Error, NifResult, Term};
+use interledger::stream::packet::*;
+use rustler::{Binary, Encoder, Env, Error, NifResult, Term};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
+use bytes::BytesMut;
 
-rustler::init!("Elixir.IlpStreaming", [encode]); //decode missing
+rustler::init!("Elixir.IlpStreaming", [encode, decode]);
 
 // macro space
 #[macro_export]
@@ -40,10 +35,10 @@ macro_rules! error {
 // functions..
 
 #[rustler::nif(schedule = "DirtyCpu")]
-fn encode<'a>(env: Env<'a>, arg: Term) -> NifResult<Term<'a>> {
-    let m = arg
+fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
+    let m = params
         .decode::<HashMap<String, Term>>()
-        .or(err!("could not decode arg to map<String,Term>"))?;
+        .or(err!("could not decode params to map<String,Term>"))?;
 
     // get fields
     let s = m.get("sequence").ok_or(error!("sequence is missing"))?;
@@ -393,7 +388,8 @@ fn encode<'a>(env: Env<'a>, arg: Term) -> NifResult<Term<'a>> {
             }
         };
     }
-    let shared_key = "too_secret".as_bytes();
+
+    let shared_key = key.as_slice();
 
     let k = StreamPacketBuilder {
         sequence: sequence,
@@ -404,6 +400,29 @@ fn encode<'a>(env: Env<'a>, arg: Term) -> NifResult<Term<'a>> {
     .build();
 
     Ok(k.into_encrypted(&shared_key).encode(env))
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn decode<'a>(env: Env<'a>, stream: Binary, key: Binary) -> NifResult<Term<'a>> {
+    let shared_secret = key.as_slice();
+    let ciphertext = BytesMut::from(stream.as_slice());
+
+    let stream_packet = StreamPacket::from_encrypted(shared_secret, ciphertext)
+        .or(err!("could not decode stream to StreamPacket"))?;
+
+    let mut resulting_stream: HashMap<String, Term> = HashMap::new();
+
+    let sequence = stream_packet.sequence();
+    let prepare_amount = stream_packet.prepare_amount();
+    let ilp_packet_type = stream_packet.ilp_packet_type() as u8;
+    let mut resulting_frames = Vec::new();
+
+    for frame in stream_packet.frames() {
+        //
+        resulting_frames.push("frame things");
+    }
+
+    Ok(resulting_stream.encode(env))
 }
 
 // #[rustler::nif(schedule = "DirtyCpu")]

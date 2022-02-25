@@ -1,4 +1,5 @@
 //imports
+use rustler::types::atom::error;
 use bytes::BytesMut;
 use interledger::packet::Address;
 use interledger::packet::PacketType as IlpPacketType;
@@ -78,7 +79,7 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     .ok_or(error!("connection_close > code is missing"))?;
                 let ms = hm
                     .get("message")
-                    .ok_or(error!("connection_close > message is missing "))?;
+                    .ok_or(error!("connection_close > message is missing"))?;
                 // transform
                 let codes = c
                     .decode::<u8>()
@@ -285,7 +286,7 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     .ok_or(error!("stream_money_blocked > send_max is missing"))?;
                 let ts = hm
                     .get("total_sent")
-                    .ok_or(error!("stream_money_blocked > total_received is total_sen"))?;
+                    .ok_or(error!("stream_money_blocked > total_sent is missing"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
@@ -315,7 +316,7 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                     .ok_or(error!("stream_data > offset is missing"))?;
                 let d = hm
                     .get("data")
-                    .ok_or(error!("stream_data > data is total_sen"))?;
+                    .ok_or(error!("stream_data > data is missing"))?;
                 // transform
                 let stream_id = si
                     .decode::<u64>()
@@ -384,7 +385,7 @@ fn encode<'a>(env: Env<'a>, params: Term, key: Binary) -> NifResult<Term<'a>> {
                 }
             }
             _ => {
-                return Ok("Error".encode(env));
+                return Ok((error(), "Error unexpected frame_type").encode(env));
             }
         };
     }

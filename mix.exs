@@ -6,7 +6,7 @@ defmodule IlpStreaming.MixProject do
       app: :ilp_streaming,
       elixirc_paths: elixirc_paths(Mix.env()),
       version: "0.1.0",
-      elixir: "~> 1.13",
+      elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -15,7 +15,8 @@ defmodule IlpStreaming.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {IlpStreaming.Application, []}
     ]
   end
 
@@ -26,10 +27,10 @@ defmodule IlpStreaming.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rustler,"~> 0.23.0" }
+      {:rustler, "~> 0.23.0"},
+      {:uuid, "~> 1.1"}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-
     ]
   end
 end

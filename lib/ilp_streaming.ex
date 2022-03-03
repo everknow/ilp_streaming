@@ -5,4 +5,7 @@ defmodule IlpStreaming do
   def encode(_params, _key \\ "secret"), do: :erlang.nif_error(:nif_not_loaded)
 
   def decode(_stream, _key \\ "secret"), do: :erlang.nif_error(:nif_not_loaded)
+
+  defdelegate send_prepare(conn, from, params), to: IlpStreaming.Client.Worker
+  defdelegate await_response, to: IlpStreaming.Client.Worker
 end

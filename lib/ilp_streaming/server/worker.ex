@@ -34,10 +34,17 @@ defmodule IlpStreaming.Server.Worker do
           14 -> IO.puts("SERVER: received reject packet")
         end
 
-        send(reply_to, {:response, {:ok, fulfill()}})
+        send(reply_to, {:response, {:ok, random_response()}})
     end
 
     {:noreply, state}
+  end
+
+  defp random_response do
+    case Enum.random(0..1) do
+      0 -> fulfill()
+      1 -> reject()
+    end
   end
 
   defp reject do

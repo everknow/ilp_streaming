@@ -14,11 +14,10 @@ defmodule IlpStreaming.Server.Manager do
 
   def start_child do
     spec = {Worker, name: "stream_server-#{UUID.uuid4()}"}
+    IO.inspect(spec, label: "Starting STREAM server")
     DynamicSupervisor.start_child(__MODULE__, spec)
   end
 
   @impl true
-  def init(_init_arg) do
-    DynamicSupervisor.init(strategy: :one_for_one)
-  end
+  def init(_init_arg), do: DynamicSupervisor.init(strategy: :one_for_one)
 end

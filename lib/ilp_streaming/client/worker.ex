@@ -13,11 +13,16 @@ defmodule IlpStreaming.Client.Worker do
 
   def start_link(opts) when is_list(opts) do
     IO.inspect(opts, label: "OPTS")
-    GenServer.start_link(__MODULE__, nil, opts)
+    GenServer.start_link(__MODULE__, opts, opts)
   end
 
-  def send_prepare(conn_id, from, params) do
+  def send_prepare_async(conn_id, from, params) do
     GenServer.call(conn_id, {:send_prepare, from, params})
+  end
+
+  def send_prepare_sync(conn_id, from, params) do
+    GenServer.call(conn_id, {:send_prepare, from, params})
+    await_response()
   end
 
   def await_response do
@@ -30,7 +35,14 @@ defmodule IlpStreaming.Client.Worker do
   end
 
   @impl GenServer
-  def init(_), do: {:ok, %{self: self()}}
+  def init(args) do
+    state =
+      args
+      |> Enum.into(%{})
+      |> Map.put(:self, self())
+
+    {:ok, state}
+  end
 
   @impl GenServer
   def handle_call({:send_prepare, from, params}, _from, state) do
@@ -49,15 +61,15 @@ defmodule IlpStreaming.Client.Worker do
     case IlpStreaming.decode(:binary.list_to_bin(payload)) do
       {:error, _} ->
         msg = "could not decode recieved payload from server"
-        IO.puts("CLIENT: error - #{msg}")
+        IO.puts("CLIENT #{state.name}: error - #{msg}")
         IO.inspect(payload, label: "Payload")
         send(state.reply_to, {:error, msg})
 
       decoded_packet ->
         case decoded_packet["ilp_packet_type"] do
-          12 -> IO.puts("CLIENT: received prepare packet")
-          13 -> IO.puts("CLIENT: received fulfill packet")
-          14 -> IO.puts("CLIENT: received reject packet")
+          12 -> IO.puts("CLIENT #{state.name}: received prepare packet")
+          13 -> IO.puts("CLIENT #{state.name}: received fulfill packet")
+          14 -> IO.puts("CLIENT #{state.name}: received reject packet")
         end
 
         send(state.reply_to, {:ok, decoded_packet})

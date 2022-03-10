@@ -7,7 +7,8 @@ defmodule IlpStreaming.Client.Worker do
   Ref: https://interledger.org/rfcs/0029-stream/#2-conventions-and-definitions
   """
 
-  alias IlpStreaming.Server.Worker, as: Server
+  # alias IlpStreaming.Server.Worker, as: Server
+  alias IlpStreaming.Connection.Http
 
   use GenServer
 
@@ -36,10 +37,13 @@ defmodule IlpStreaming.Client.Worker do
 
   @impl GenServer
   def init(args) do
+    {:ok, conn} = IlpStreaming.Connection.Manager.start_child()
+
     state =
       args
       |> Enum.into(%{})
       |> Map.put(:self, self())
+      |> Map.put(:conn, conn)
 
     {:ok, state}
   end
@@ -51,7 +55,8 @@ defmodule IlpStreaming.Client.Worker do
         {:reply, {:error, "could not encode prepare with those params"}, state}
 
       encoded_packet ->
-        send(Server, {:request, :binary.list_to_bin(encoded_packet), state.self})
+        Http.request(state.conn, "POST", "/", [{"content-type", "application/json"}], Jason.encode!(%{packer: encoded_packet}))
+        # send(Server, {:request, :binary.list_to_bin(encoded_packet), state.self})
         {:reply, {:ok, "sent prepare to server"}, Map.put(state, :reply_to, from)}
     end
   end

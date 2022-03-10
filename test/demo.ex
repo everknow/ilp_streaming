@@ -57,7 +57,7 @@ defmodule Demo do
   def start_simulation(conn) do
     Task.async(fn ->
       Enum.each(0..20, fn _ ->
-        IlpStreaming.send_prepare_sync(conn, self(), prepare_params())
+        IlpStreaming.Client.Worker.send_prepare_sync(conn, self(), prepare_params())
         Process.sleep(500)
         :ok
       end)

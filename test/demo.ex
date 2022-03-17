@@ -63,4 +63,5 @@ defmodule Demo do
       end)
     end)
   end
+  def prepare_http, do: Jason.encode!(prepare_params())
 end

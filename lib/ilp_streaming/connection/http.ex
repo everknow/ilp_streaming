@@ -6,11 +6,15 @@ defmodule IlpStreaming.Connection.Http do
   defstruct [:conn, requests: %{}]
 
   def start_link({scheme, host, port}) do
-    GenServer.start_link(__MODULE__, {scheme, host, port})
+    GenServer.start_link(__MODULE__, {scheme, host, port}, name: __MODULE__)
   end
 
   def request(pid, method, path, headers, body) do
     GenServer.call(pid, {:request, method, path, headers, body})
+  end
+
+  def send_prepare(prepare \\ "") do
+    GenServer.call(__MODULE__, {:request, "POST", "/", [{"content-type", "application/json"}], prepare})
   end
 
   ## Callbacks
@@ -47,8 +51,12 @@ defmodule IlpStreaming.Connection.Http do
 
   @impl true
   def handle_info(message, state) do
-    # We should handle the error case here as well, but we're omitting it for brevity.
     case Mint.HTTP.stream(state.conn, message) do
+      {:error, _, %Mint.TransportError{reason: :closed}, []} ->
+        {:ok, conn} = Mint.HTTP.connect(:http, "localhost", 8000)
+        state = %__MODULE__{conn: conn}
+        {:noreply, state}
+
       :unknown ->
         _ = Logger.error(fn -> "Received unknown message: " <> inspect(message) end)
         {:noreply, state}

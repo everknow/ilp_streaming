@@ -1,9 +1,9 @@
-defmodule IlpStreaming.Client.Manager do
+defmodule SPSP.Client.Manager do
   @moduledoc """
-  Client process supervisor that provides an API to start and use STREAM connections.
+  Client process supervisor that provides an API to start SPSP clients.
   """
 
-  alias IlpStreaming.Client.Worker
+  alias SPSP.Client.Worker
 
   use DynamicSupervisor
 

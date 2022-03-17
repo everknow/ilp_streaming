@@ -7,9 +7,11 @@ defmodule IlpStreaming.Application do
 
   @impl true
   def start(_type, _args) do
+    conn_opts = {:http, "localhost", 8000}
+
     children = [
-      IlpStreaming.Client.Manager,
-      IlpStreaming.Server.Manager
+      {Plug.Cowboy, scheme: :http, plug: SPSP.Server.Plug, options: [port: 8000]},
+      {IlpStreaming.Connection.Http, conn_opts}
     ]
 
     opts = [strategy: :one_for_one, name: IlpStreaming.Supervisor]

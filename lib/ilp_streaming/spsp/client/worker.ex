@@ -1,4 +1,4 @@
-defmodule IlpStreaming.Client.Worker do
+defmodule SPSP.Client.Worker do
   @moduledoc """
   Each process represents an active STREAM client. Client definition
   taken from Interledger STREAM protocol specs as `the endpoint initiating
@@ -7,32 +7,16 @@ defmodule IlpStreaming.Client.Worker do
   Ref: https://interledger.org/rfcs/0029-stream/#2-conventions-and-definitions
   """
 
-  # alias IlpStreaming.Server.Worker, as: Server
   alias IlpStreaming.Connection.Http
 
   use GenServer
 
   def start_link(opts) when is_list(opts) do
-    IO.inspect(opts, label: "OPTS")
     GenServer.start_link(__MODULE__, opts, opts)
   end
 
-  def send_prepare_async(conn_id, from, params) do
-    GenServer.call(conn_id, {:send_prepare, from, params})
-  end
-
-  def send_prepare_sync(conn_id, from, params) do
-    GenServer.call(conn_id, {:send_prepare, from, params})
-    await_response()
-  end
-
-  def await_response do
-    receive do
-      result -> result
-    after
-      :timer.seconds(5) ->
-        {:error, "timeout"}
-    end
+  def send_money(conn_id, from, params) do
+    GenServer.call(conn_id, {:send_money, from, params})
   end
 
   @impl GenServer
@@ -49,7 +33,7 @@ defmodule IlpStreaming.Client.Worker do
   end
 
   @impl GenServer
-  def handle_call({:send_prepare, from, params}, _from, state) do
+  def handle_call({:send_money, from, params}, _from, state) do
     case IlpStreaming.encode(params) do
       {:error, _} ->
         {:reply, {:error, "could not encode prepare with those params"}, state}
@@ -60,7 +44,7 @@ defmodule IlpStreaming.Client.Worker do
           "POST",
           "/",
           [{"content-type", "application/json"}],
-          Jason.encode!(%{packer: encoded_packet})
+          Jason.encode!(%{packet: encoded_packet})
         )
 
         # send(Server, {:request, :binary.list_to_bin(encoded_packet), state.self})
